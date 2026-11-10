@@ -1,0 +1,4 @@
+.env
+*.json
+!job-hunter-workflow.json
+!neo-agent-workflow.json

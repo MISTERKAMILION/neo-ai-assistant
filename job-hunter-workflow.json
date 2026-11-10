@@ -1,0 +1,233 @@
+{
+  "name": "neo-project",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        32
+      ],
+      "id": "08e2cead-c773-4f9d-86a9-3586d3beb3aa",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "https://remotive.com/api/remote-jobs?search=cloud",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        224,
+        32
+      ],
+      "id": "489e051d-136e-45e2-88d5-b1c4aca15e28",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.first().json.jobs.map(job => {\n  // Strip all HTML tags completely\n  let textOnly = job.description ? job.description.replace(/<[^>]*>?/gm, ' ') : \"\";\n  \n  return {\n    json: {\n      title: job.title,\n      company_name: job.company_name,\n      url: job.url,\n      // ONLY take the first 400 characters to save massive amounts of tokens\n      short_description: textOnly.substring(0, 400)\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        32
+      ],
+      "id": "490162ad-6f0d-4737-b954-bc80099662a5",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an expert technical recruiter. I will provide you with a job description.\nEvaluate if this job is a good fit for a candidate with this profile:\n\nCANDIDATE PROFILE:\n- Student in Digital Infrastructure (Cloud Computing)\n- Skills: OpenStack, Kolla-Ansible, Linux, Docker, Python, AI Agents.\n- Looking for: Cloud Infrastructure, AI Engineering, or Software Development roles.\n\nJOB DESCRIPTION:\n{{ $json.short_description }}\n\nINSTRUCTIONS:\nIf this job is a good fit, output exactly the word: MATCH\nIf it is a bad fit, output exactly the word: REJECT\nDo not output anything else.",
+        "messages": {
+          "messageValues": []
+        },
+        "batching": {
+          "batchSize": 1,
+          "delayBetweenBatches": 10
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        672,
+        32
+      ],
+      "id": "b6a6b82d-e476-474c-bfcc-72b189f44181",
+      "name": "Basic LLM Chain",
+      "notesInFlow": false
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-20b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        608,
+        208
+      ],
+      "id": "f253632f-fa36-44a3-8ddc-559eb417b81f",
+      "name": "Groq Chat Model",
+      "notesInFlow": true,
+      "credentials": {
+        "groqApi": {
+          "id": "91R8l1TGFv2lqd0q",
+          "name": "Groq account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "f23e013b-36b2-434b-a905-2b32bb88a259",
+              "leftValue": "={{ $json.text }}",
+              "rightValue": "MATCH",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.4,
+      "position": [
+        800,
+        272
+      ],
+      "id": "8f242722-543e-4e18-bea3-403d5ae68d7b",
+      "name": "Filter"
+    },
+    {
+      "parameters": {
+        "sendTo": "mrzaidinossair@gmail.com",
+        "subject": "🤖 NEO Job Alert: New Matches Found!",
+        "emailType": "text",
+        "message": "={{ $json.whatsapp_text }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        848,
+        448
+      ],
+      "id": "9bc69ae1-91ca-40d7-97e3-1870642260dd",
+      "name": "Send a message",
+      "webhookId": "2d620238-2679-4f90-b0c6-59760ec7b6bf",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "C5qA4Bg1SlvZnCsx",
+          "name": "Gmail account 2"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "63190098-c0d8-414e-9e4c-b4416bb2f6eb",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b2080ab2a2375c19f295168e34fd1532ea78a5c9a21d651e84c080507d8f99a4"
+  },
+  "nodeGroups": [],
+  "id": "1cUurJZSsKU4NHUu",
+  "tags": []
+}
